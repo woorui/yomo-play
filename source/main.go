@@ -2,6 +2,7 @@ package source
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -10,16 +11,25 @@ import (
 
 const DataTag = 12345
 
+type KV struct {
+	Key   string
+	Value string
+}
+
 // PipeToSource is the main logic of source.
-func PipeToSource(r io.Reader, source yomo.Source) error {
+func PipeToSource(name string, r io.Reader, source yomo.Source) error {
 	scanner := bufio.NewScanner(r)
 
 	for i := 1; ; i++ {
 		if !scanner.Scan() {
 			break
 		}
-		fmt.Println(scanner.Text())
-		if err := source.Write(DataTag, scanner.Bytes()); err != nil {
+		fmt.Println(name, scanner.Text())
+		b, err := json.Marshal(&KV{Key: name, Value: scanner.Text()})
+		if err != nil {
+			return err
+		}
+		if err := source.Write(DataTag, b); err != nil {
 			return err
 		}
 	}

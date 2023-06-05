@@ -2,33 +2,50 @@ package main
 
 import (
 	"fmt"
-	"strconv"
+	"sync"
 
+	"github.com/tidwall/gjson"
 	"github.com/yomorun/yomo/serverless"
 )
 
-var (
-	sum = 0.
-	i   = float64(1)
-)
+type family struct {
+	sum float64
+	i   float64
+	avg float64
+}
+
+var locker sync.Mutex
+
+var familyMap = map[string]*family{}
 
 // Handler will handle the raw data
 func Handler(ctx serverless.Context) {
 	data := ctx.Data()
 
-	num, err := strconv.Atoi(string(data))
-	if err != nil {
-		fmt.Printf("sfn received NaN: %+v\n", data)
-		return
+	v := gjson.GetBytes(data, "Key")
+	name := v.String()
+
+	fmt.Println(name)
+
+	v = gjson.GetBytes(data, "Value")
+	num := v.Float()
+
+	locker.Lock()
+	defer locker.Unlock()
+
+	f, ok := familyMap[name]
+	if !ok {
+		f = &family{}
+		familyMap[name] = f
 	}
 
 	// calculate the average.
-	sum += float64(num)
-	avg := sum / i
+	f.sum += num
+	f.avg = f.sum / f.i
 
-	fmt.Printf("sfn received, i=%0f, num=%d, sum=%0.2f, avg=%0.2f\n", i, num, sum, avg)
+	fmt.Printf("sfn received, name=%s, i=%0f, num=%0f, sum=%0.2f, avg=%0.2f\n", name, f.i, num, f.sum, f.avg)
 
-	i++
+	f.i++
 }
 
 func DataTags() []uint32 {

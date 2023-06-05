@@ -34,6 +34,6 @@ func main() {
 			log.Fatalln("accept error:", err)
 		}
 
-		go source.PipeToSource(conn, s)
+		go source.PipeToSource(conn.RemoteAddr().String(), conn, s)
 	}
 }
