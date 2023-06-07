@@ -4,31 +4,35 @@ This program receives a streamed random number from a TCP server and splits the 
 The source then sends it to the zipper, the zipper sends it to the SFN, and the SFN calculates their average.
 
 
-### Use yomo 1.13.0 version.
+## Use yomo
+
 ```bash
+# install 1.13.0 yomo cli
 curl -fsSL https://get.yomo.run | sh
-```
 
-### Run zipper
-
-```bash
+# run yomo zipper
 yomo serve -c config.yaml
-```
 
-### Run tcp server with the source
+# tcp server with the source
+go run main.go -broker=yomo
 
-```bash
-go run main.go
-```
-
-### Run sfn.
-
-```bash
+# run yomo sfn
 cd calc && yomo build && yomo run sfn.wasm
+
+# Mock random number to the tcp server
+seq 10 | xargs -I{} -P 10 bash -c 'for (( ; ; )); do sleep 0.1; echo $RANDOM; done | telnet 192.168.31.125 8080'
 ```
 
-### Mock random number to the tcp server.
+
+## Use http server
 
 ```bash
+# http hander as sfn
+go run httpsrv/main.go
+
+# tcp packet to http request
+go run main.go -broker=http
+
+# send mock data to the tcp server
 seq 10 | xargs -I{} -P 10 bash -c 'for (( ; ; )); do sleep 0.1; echo $RANDOM; done | telnet 192.168.31.125 8080'
 ```
