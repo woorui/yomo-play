@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/woorui/yomo-play/api"
 	"github.com/woorui/yomo-play/source"
 	"github.com/yomorun/yomo"
 )
@@ -43,6 +44,35 @@ func runHttpBroker() {
 
 		// http srv
 		go source.PostToHttpSrv(conn.RemoteAddr().String(), conn)
+	}
+}
+
+func runNewAPI() {
+	s := api.NewSource("avg", zipperaddr)
+
+	if err := s.Connect(); err != nil {
+		log.Fatalln("source connect error:", err)
+	}
+
+	listener, err := net.Listen("tcp", tcpAddr)
+	if err != nil {
+		log.Fatalln("listen error:", err)
+	}
+
+	fmt.Println("SERVER UP")
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Fatalln("accept error:", err)
+		}
+
+		go func() {
+			if err := s.WriteFrom(conn); err != nil {
+				log.Fatalln("write error:", err)
+			}
+
+		}()
 	}
 }
 
