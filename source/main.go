@@ -1,60 +1,72 @@
-package source
+package main
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
+	"log"
+	"math/rand"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/yomorun/yomo"
+	"github.com/yomorun/yomo/serverless"
 )
 
-const DataTag = 12345
+func main() {
+	// connect to YoMo-Zipper.
+	addr := "localhost:9000"
+	if v := os.Getenv("YOMO_ADDR"); v != "" {
+		addr = v
+	}
+	source := yomo.NewSource("yomo-source", addr)
+	err := source.Connect()
+	if err != nil {
+		log.Printf("[source] ❌ Emit the data to YoMo-Zipper failure with err: %v", err)
+		return
+	}
 
-type KV struct {
-	Key   string
-	Value string
+	defer source.Close()
+
+	// set the error handler function when server error occurs
+	source.SetErrorHandler(func(err error) {
+		log.Printf("[source] receive server error: %v", err)
+		os.Exit(1)
+	})
+
+	// If you want receive data from source side, you should create a sfn to do that.
+	backflow := yomo.NewStreamFunction("backflow", addr)
+	backflow.SetObserveDataTags(0x34, 0x35)
+	backflow.SetWantedTarget("my-backflow")
+	backflow.SetHandler(func(ctx serverless.Context) {
+		log.Printf("[backflow] ♻️  receive backflow: tag=%#v, data=%s", ctx.Tag(), ctx.Data())
+	})
+	err = backflow.Connect()
+	if err != nil {
+		log.Printf("[backflow] ❌ Connect to YoMo-Zipper failure with err: %v", err)
+		return
+	}
+
+	// generate mock data and send it to YoMo-Zipper in every 100 ms.
+	err = generateAndSendData(source)
+	log.Printf("[source] >>>> ERR >>>> %v", err)
+	os.Exit(0)
 }
 
-// PipeToSource is the main logic of source.
-func PipeToSource(name string, r io.Reader, source yomo.Source) error {
-	scanner := bufio.NewScanner(r)
-
-	for i := 1; ; i++ {
-		if !scanner.Scan() {
-			break
-		}
-		fmt.Println(name, scanner.Text())
-		b, err := json.Marshal(&KV{Key: name, Value: scanner.Text()})
+func generateAndSendData(stream yomo.Source) error {
+	for {
+		// generate random data.
+		noise := rand.New(rand.NewSource(time.Now().UnixNano())).Float64() * 200
+		data := []byte(strconv.FormatFloat(noise, 'f', 2, 64))
+		// send data via QUIC stream.
+		err := stream.WriteWithTarget(0x33, data, "my-handler")
 		if err != nil {
-			return err
+			log.Printf("[source] ❌ Emit %.2f to YoMo-Zipper failure with err: %v", noise, err)
+			time.Sleep(500 * time.Millisecond)
+			continue
+
+		} else {
+			log.Printf("[source] ✅ Emit %.2f to YoMo-Zipper", noise)
 		}
-		if err := source.Write(DataTag, b); err != nil {
-			return err
-		}
+
+		time.Sleep(1000 * time.Millisecond)
 	}
-	return nil
-}
-
-func PostToHttpSrv(name string, r io.Reader) error {
-	scanner := bufio.NewScanner(r)
-
-	for i := 1; ; i++ {
-		if !scanner.Scan() {
-			break
-		}
-		fmt.Println(name, scanner.Text())
-		b, err := json.Marshal(&KV{Key: name, Value: scanner.Text()})
-		if err != nil {
-			return err
-		}
-		_, err = http.Post("http://127.0.0.1:8090", "application/json", bytes.NewBuffer(b))
-		if err != nil {
-			return err
-		}
-
-	}
-	return nil
 }
