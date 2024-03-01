@@ -16,13 +16,9 @@ func Init() error {
 func Handler(ctx serverless.Context) {
 	data := ctx.Data()
 	fmt.Printf("<< sfn received[%d tag, %d Bytes]: %s\n", ctx.Tag(), len(data), string(data))
-	ctx.WriteWithTarget(0x35, data, "my-backflow")
+	ctx.Write(0x35, data)
 }
 
 func DataTags() []uint32 {
 	return []uint32{0x33}
-}
-
-func WantedTarget() string {
-	return "my-handler"
 }
