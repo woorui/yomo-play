@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	sfn := yomo.NewStreamFunction("sfn", "localhost:9000")
+	sfn := yomo.NewStreamFunction("sfn", "localhost:9000", yomo.WithSfnCredential("token:Happy New Year"))
 	sfn.SetObserveDataTags(0x33, 0x34)
 	err := sfn.Connect()
 	if err != nil {

@@ -17,7 +17,7 @@ func main() {
 	if v := os.Getenv("YOMO_ADDR"); v != "" {
 		addr = v
 	}
-	source := yomo.NewSource("yomo-source", addr)
+	source := yomo.NewSource("yomo-source", addr, yomo.WithCredential("token:Happy New Year"))
 	err := source.Connect()
 	if err != nil {
 		log.Printf("[source] ❌ Emit the data to YoMo-Zipper failure with err: %v", err)
@@ -33,7 +33,7 @@ func main() {
 	})
 
 	// If you want receive data from source side, you should create a sfn to do that.
-	backflow := yomo.NewStreamFunction("backflow", addr)
+	backflow := yomo.NewStreamFunction("backflow", addr, yomo.WithSfnCredential("token:Happy New Year"))
 	backflow.SetObserveDataTags(0x34, 0x35)
 	backflow.SetWantedTarget("my-backflow")
 	backflow.SetHandler(func(ctx serverless.Context) {
