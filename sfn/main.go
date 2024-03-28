@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/yomorun/yomo"
 )
@@ -23,7 +24,7 @@ func main() {
 	go func() {
 		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 		<-ch
-		fmt.Println("close sfn")
+		fmt.Println("close sfn", time.Now())
 		sfn.Close()
 	}()
 
